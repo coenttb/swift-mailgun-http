@@ -4,12 +4,12 @@ import EmailAddress_Standard
 import Foundation
 import HTTP
 import HTTP_Router
-import RFC_9110
 import RFC_2045
 import RFC_2045_Coder
 import RFC_2046
 import RFC_2046_Coder
 import RFC_2183
+import RFC_9110
 import Time
 
 /// Wire-level request construction for `Mailgun.Messages` (official
@@ -101,9 +101,9 @@ extension Mailgun.HTTP.Messages {
 extension Mailgun.HTTP.Messages {
     /// A `multipart/form-data` text field: `Content-Disposition` only, no
     /// `Content-Type` — matching the archived router's `addField`.
-    fileprivate static func field(_ name: String, _ value: String) -> RFC_2046.BodyPart {
+    fileprivate static func field(_ name: String, _ value: String) throws(Mailgun.HTTP.Construction.Error) -> RFC_2046.BodyPart {
         RFC_2046.BodyPart(
-            headers: RFC_2046.BodyPart.Headers(contentDisposition: .formData(name: name)),
+            headers: RFC_2046.BodyPart.Headers(contentDisposition: .formData(name: try Self.name(name))),
             content: RFC_2046.BodyPart.Content(value)
         )
     }
@@ -117,7 +117,7 @@ extension Mailgun.HTTP.Messages {
         filename: String,
         contentType: String?,
         data: [Byte]
-    ) -> RFC_2046.BodyPart {
+    ) throws(Mailgun.HTTP.Construction.Error) -> RFC_2046.BodyPart {
         // REASON: matches the archived router's `addFileField` exactly — an
         // unparseable filename or content type is dropped silently rather than
         // failing the whole multipart request; there is no narrower typed
@@ -128,11 +128,19 @@ extension Mailgun.HTTP.Messages {
         let contentType = contentType.flatMap { try? RFC_2045.ContentType($0) }
         return RFC_2046.BodyPart(
             headers: RFC_2046.BodyPart.Headers(
-                contentDisposition: .formData(name: name, filename: filename),
+                contentDisposition: .formData(name: try Self.name(name), filename: filename),
                 contentType: contentType
             ),
             content: RFC_2046.BodyPart.Content(binary: data)
         )
+    }
+
+    fileprivate static func name(_ name: String) throws(Mailgun.HTTP.Construction.Error) -> RFC_2183.ParameterValue {
+        do throws(RFC_2183.ParameterValue.Error) {
+            return try RFC_2183.ParameterValue(name)
+        } catch {
+            throw .messagesMultipart(String(describing: error))
+        }
     }
 
     /// `template`/`t:version`/`t:text`/`t:variables` — identical across
@@ -142,12 +150,12 @@ extension Mailgun.HTTP.Messages {
         templateVersion: String?,
         templateText: Bool?,
         templateVariables: String?
-    ) -> [RFC_2046.BodyPart] {
+    ) throws(Mailgun.HTTP.Construction.Error) -> [RFC_2046.BodyPart] {
         var parts: [RFC_2046.BodyPart] = []
-        if let template { parts.append(Self.field("template", template)) }
-        if let templateVersion { parts.append(Self.field("t:version", templateVersion)) }
-        if let templateText { parts.append(Self.field("t:text", templateText ? "yes" : "no")) }
-        if let templateVariables { parts.append(Self.field("t:variables", templateVariables)) }
+        if let template { try parts.append(Self.field("template", template)) }
+        if let templateVersion { try parts.append(Self.field("t:version", templateVersion)) }
+        if let templateText { try parts.append(Self.field("t:text", templateText ? "yes" : "no")) }
+        if let templateVariables { try parts.append(Self.field("t:variables", templateVariables)) }
         return parts
     }
 
@@ -181,62 +189,62 @@ extension Mailgun.HTTP.Messages {
 
     /// `o:tag` through `recipient-variables` — identical across `send` and
     /// `sendMime`.
-    fileprivate static func optionParts(_ options: Options) -> [RFC_2046.BodyPart] {
+    fileprivate static func optionParts(_ options: Options) throws(Mailgun.HTTP.Construction.Error) -> [RFC_2046.BodyPart] {
         var parts: [RFC_2046.BodyPart] = []
-        if let tags = options.tags { for tag in tags { parts.append(Self.field("o:tag", tag)) } }
-        if let dkim = options.dkim { parts.append(Self.field("o:dkim", dkim ? "yes" : "no")) }
+        if let tags = options.tags { for tag in tags { try parts.append(Self.field("o:tag", tag)) } }
+        if let dkim = options.dkim { try parts.append(Self.field("o:dkim", dkim ? "yes" : "no")) }
         if let secondaryDkim = options.secondaryDkim {
-            parts.append(Self.field("o:secondary-dkim", secondaryDkim))
+            try parts.append(Self.field("o:secondary-dkim", secondaryDkim))
         }
         if let secondaryDkimPublic = options.secondaryDkimPublic {
-            parts.append(Self.field("o:secondary-dkim-public", secondaryDkimPublic))
+            try parts.append(Self.field("o:secondary-dkim-public", secondaryDkimPublic))
         }
         if let deliveryTime = options.deliveryTime {
-            parts.append(Self.field("o:deliverytime", Self.rfc2822(deliveryTime)))
+            try parts.append(Self.field("o:deliverytime", Self.rfc2822(deliveryTime)))
         }
         if let deliveryTimeOptimizePeriod = options.deliveryTimeOptimizePeriod {
-            parts.append(Self.field("o:deliverytime-optimize-period", deliveryTimeOptimizePeriod))
+            try parts.append(Self.field("o:deliverytime-optimize-period", deliveryTimeOptimizePeriod))
         }
         if let timeZoneLocalize = options.timeZoneLocalize {
-            parts.append(Self.field("o:time-zone-localize", timeZoneLocalize))
+            try parts.append(Self.field("o:time-zone-localize", timeZoneLocalize))
         }
         if let testMode = options.testMode {
-            parts.append(Self.field("o:testmode", testMode ? "yes" : "no"))
+            try parts.append(Self.field("o:testmode", testMode ? "yes" : "no"))
         }
         if let tracking = options.tracking {
-            parts.append(Self.field("o:tracking", tracking.rawValue))
+            try parts.append(Self.field("o:tracking", tracking.rawValue))
         }
         if let trackingClicks = options.trackingClicks {
-            parts.append(Self.field("o:tracking-clicks", trackingClicks.rawValue))
+            try parts.append(Self.field("o:tracking-clicks", trackingClicks.rawValue))
         }
         if let trackingOpens = options.trackingOpens {
-            parts.append(Self.field("o:tracking-opens", trackingOpens ? "yes" : "no"))
+            try parts.append(Self.field("o:tracking-opens", trackingOpens ? "yes" : "no"))
         }
         if let requireTls = options.requireTls {
-            parts.append(Self.field("o:require-tls", requireTls ? "yes" : "no"))
+            try parts.append(Self.field("o:require-tls", requireTls ? "yes" : "no"))
         }
         if let skipVerification = options.skipVerification {
-            parts.append(Self.field("o:skip-verification", skipVerification ? "yes" : "no"))
+            try parts.append(Self.field("o:skip-verification", skipVerification ? "yes" : "no"))
         }
         if let sendingIp = options.sendingIp {
-            parts.append(Self.field("o:sending-ip", sendingIp))
+            try parts.append(Self.field("o:sending-ip", sendingIp))
         }
         if let sendingIpPool = options.sendingIpPool {
-            parts.append(Self.field("o:sending-ip-pool", sendingIpPool))
+            try parts.append(Self.field("o:sending-ip-pool", sendingIpPool))
         }
         if let trackingPixelLocationTop = options.trackingPixelLocationTop {
-            parts.append(
+            try parts.append(
                 Self.field("o:tracking-pixel-location-top", trackingPixelLocationTop ? "yes" : "no")
             )
         }
         if let headers = options.headers {
-            for (key, value) in headers { parts.append(Self.field("h:\(key)", value)) }
+            for (key, value) in headers { try parts.append(Self.field("h:\(key)", value)) }
         }
         if let variables = options.variables {
-            for (key, value) in variables { parts.append(Self.field("v:\(key)", value)) }
+            for (key, value) in variables { try parts.append(Self.field("v:\(key)", value)) }
         }
         if let recipientVariables = options.recipientVariables {
-            parts.append(Self.field("recipient-variables", recipientVariables))
+            try parts.append(Self.field("recipient-variables", recipientVariables))
         }
         return parts
     }
@@ -258,20 +266,20 @@ extension Mailgun.HTTP.Messages {
 
     fileprivate static func parts(
         for request: Mailgun.Messages.Send.Request
-    ) -> [RFC_2046.BodyPart] {
-        var parts: [RFC_2046.BodyPart] = [Self.field("from", request.from.address)]
-        for recipient in request.to { parts.append(Self.field("to", recipient.address)) }
-        parts.append(Self.field("subject", request.subject))
-        if let html = request.html { parts.append(Self.field("html", html)) }
-        if let text = request.text { parts.append(Self.field("text", text)) }
+    ) throws(Mailgun.HTTP.Construction.Error) -> [RFC_2046.BodyPart] {
+        var parts: [RFC_2046.BodyPart] = [try Self.field("from", request.from.address)]
+        for recipient in request.to { try parts.append(Self.field("to", recipient.address)) }
+        try parts.append(Self.field("subject", request.subject))
+        if let html = request.html { try parts.append(Self.field("html", html)) }
+        if let text = request.text { try parts.append(Self.field("text", text)) }
         if let cc = request.cc {
-            for recipient in cc { parts.append(Self.field("cc", recipient.address)) }
+            for recipient in cc { try parts.append(Self.field("cc", recipient.address)) }
         }
         if let bcc = request.bcc {
-            for recipient in bcc { parts.append(Self.field("bcc", recipient.address)) }
+            for recipient in bcc { try parts.append(Self.field("bcc", recipient.address)) }
         }
-        if let ampHtml = request.ampHtml { parts.append(Self.field("amp-html", ampHtml)) }
-        parts.append(
+        if let ampHtml = request.ampHtml { try parts.append(Self.field("amp-html", ampHtml)) }
+        try parts.append(
             contentsOf: Self.templateParts(
                 template: request.template,
                 templateVersion: request.templateVersion,
@@ -281,7 +289,7 @@ extension Mailgun.HTTP.Messages {
         )
         if let attachments = request.attachments {
             for attachment in attachments {
-                parts.append(
+                try parts.append(
                     Self.fileField(
                         "attachment",
                         filename: attachment.filename,
@@ -293,7 +301,7 @@ extension Mailgun.HTTP.Messages {
         }
         if let inline = request.inline {
             for attachment in inline {
-                parts.append(
+                try parts.append(
                     Self.fileField(
                         "inline",
                         filename: attachment.filename,
@@ -303,7 +311,7 @@ extension Mailgun.HTTP.Messages {
                 )
             }
         }
-        parts.append(
+        try parts.append(
             contentsOf: Self.optionParts(
                 Options(
                     tags: request.tags,
@@ -333,10 +341,10 @@ extension Mailgun.HTTP.Messages {
 
     fileprivate static func parts(
         for request: Mailgun.Messages.Send.Mime.Request
-    ) -> [RFC_2046.BodyPart] {
+    ) throws(Mailgun.HTTP.Construction.Error) -> [RFC_2046.BodyPart] {
         var parts: [RFC_2046.BodyPart] = []
-        for recipient in request.to { parts.append(Self.field("to", recipient.address)) }
-        parts.append(
+        for recipient in request.to { try parts.append(Self.field("to", recipient.address)) }
+        try parts.append(
             Self.fileField(
                 "message",
                 filename: "message",
@@ -344,7 +352,7 @@ extension Mailgun.HTTP.Messages {
                 data: request.message
             )
         )
-        parts.append(
+        try parts.append(
             contentsOf: Self.templateParts(
                 template: request.template,
                 templateVersion: request.templateVersion,
@@ -352,7 +360,7 @@ extension Mailgun.HTTP.Messages {
                 templateVariables: request.templateVariables
             )
         )
-        parts.append(
+        try parts.append(
             contentsOf: Self.optionParts(
                 Options(
                     tags: request.tags,
