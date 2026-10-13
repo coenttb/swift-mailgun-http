@@ -165,4 +165,4 @@ the Mailgun dashboard.
 
 ## License
 
-This package is licensed under the AGPL 3.0 License. See [LICENSE.md](LICENSE.md) for details.
+Apache 2.0. See [LICENSE.md](LICENSE.md).
