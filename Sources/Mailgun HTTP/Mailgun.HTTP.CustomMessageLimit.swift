@@ -30,8 +30,7 @@ extension Mailgun.HTTP.CustomMessageLimit {
         )
     }
 
-    public static func deleteMonthlyLimit() throws(Mailgun.HTTP.Construction.Error) -> HTTP.Router.Request
-    {
+    public static func deleteMonthlyLimit() throws(Mailgun.HTTP.Construction.Error) -> HTTP.Router.Request {
         try Mailgun.HTTP.Construction.request(
             .delete,
             ["v5", "accounts", "limit", "custom", "monthly"]

@@ -73,8 +73,7 @@ extension Mailgun.HTTP.AccountManagement {
         try Mailgun.HTTP.Construction.request(.post, ["v5", "accounts", "resend_activation_email"])
     }
 
-    public static func getSAMLOrganization() throws(Mailgun.HTTP.Construction.Error) -> HTTP.Router.Request
-    {
+    public static func getSAMLOrganization() throws(Mailgun.HTTP.Construction.Error) -> HTTP.Router.Request {
         try Mailgun.HTTP.Construction.request(.get, ["v5", "accounts", "saml_org"])
     }
 

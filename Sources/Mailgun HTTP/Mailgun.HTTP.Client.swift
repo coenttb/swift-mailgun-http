@@ -1,7 +1,7 @@
 import HTTP
 import HTTP_Router
-import RFC_9110
 import RFC_3986
+import RFC_9110
 
 extension Mailgun.HTTP {
     /// The live wire-execution client: attaches host and credentials to
@@ -41,11 +41,14 @@ extension Mailgun.HTTP {
             // "Basic " + base64("api:<key>") is always composed of the base64
             // alphabet plus a space, which is always RFC 9110 field-value legal —
             // this can never actually throw.
-            // swiftlint:disable:next force_try
-            self.authorizationHeader = try! RFC_9110.Field(
-                name: "Authorization",
-                value: authentication.credentials.headerValue
-            )
+            do {
+                self.authorizationHeader = try RFC_9110.Field(
+                    name: "Authorization",
+                    value: authentication.credentials.headerValue
+                )
+            } catch {
+                preconditionFailure("Basic credentials are a legal RFC 9110 field-value: \(error)")
+            }
         }
     }
 }

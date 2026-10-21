@@ -1,8 +1,8 @@
 import HTTP
 import HTTP_Router
-import RFC_9110
 import RFC_3986
 import RFC_3986_Coder
+import RFC_9110
 
 extension Mailgun.HTTP.Client {
     /// Resolves a wire-constructed request (origin-form, unauthenticated —
@@ -17,8 +17,13 @@ extension Mailgun.HTTP.Client {
         if case .resource(let uri) = request.target, uri.isRelative, let path = uri.path {
             request.target = .resource(
                 RFC_3986.URI(
-                    // swiftlint:disable:next force_try
-                    scheme: try! .init("https"),
+                    scheme: {
+                        do {
+                            return try .init("https")
+                        } catch {
+                            preconditionFailure("\"https\" is a valid URI scheme: \(error)")
+                        }
+                    }(),
                     authority: .init(host: host),
                     path: path,
                     query: uri.query
