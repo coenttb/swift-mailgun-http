@@ -31,7 +31,7 @@ let package = Package(
             branch: "main"
         ),
         .package(
-            url: "https://github.com/swift-compositions/swift-html-form-coder.git",
+            url: "https://github.com/coenttb/swift-html-form-coder.git",
             branch: "main"
         ),
         .package(
@@ -39,7 +39,7 @@ let package = Package(
             branch: "main"
         ),
         .package(
-            url: "https://github.com/swift-compositions/swift-http-router.git",
+            url: "https://github.com/coenttb/swift-http-router.git",
             branch: "main"
         ),
         .package(
