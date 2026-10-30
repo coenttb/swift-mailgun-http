@@ -1,7 +1,6 @@
 import HTTP
 import HTTP_Router
 import RFC_3986
-import RFC_3986_Coder
 import RFC_9110
 
 extension Mailgun.HTTP.Client {
